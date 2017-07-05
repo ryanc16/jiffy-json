@@ -61,7 +61,7 @@ public class JsonParser {
 		}
 	}
 	
-	private void read() {
+	private void read() throws JsonParseException{
 		current = getNextCharAndAdvancePointer();
 		skipWhitespace();
 		switch(current) {
@@ -124,7 +124,7 @@ public class JsonParser {
 		}
 	}
 	
-	private JsonObject readObject() {
+	private JsonObject readObject() throws JsonParseException{
 		onkey = true;
 		nesting.push(new JsonObject());
 		while(current!='}') read();
@@ -132,7 +132,7 @@ public class JsonParser {
 		return (JsonObject)nesting.pop();
 	}
 	
-	private JsonArray readArray() {
+	private JsonArray readArray() throws JsonParseException{
 		nesting.push(new JsonArray());
 		while(current!=']') read();
 		if(peekNextChar()!=']') current = getNextCharAndAdvancePointer();
@@ -173,8 +173,24 @@ public class JsonParser {
 			current = getNextCharAndAdvancePointer();
 	}
 	
-	private boolean isEscapeCharacter(char current) {
-		return current=='\\';
+	private boolean isEscapeCharacter(char c) {
+		return c=='\\';
+	}
+	
+	private boolean isControlCharacter(char c) {
+		switch(c) {
+			case '"':
+			case '\\':
+			case '/':
+			case 'b':
+			case 'f':
+			case 'n':
+			case 'r':
+			case 't':
+			case 'u':
+				return true;
+		}
+		return false;
 	}
 	
 	private void readBoolean() {
@@ -197,7 +213,7 @@ public class JsonParser {
 		StringBuilder str = new StringBuilder();
 		current = getNextCharAndAdvancePointer();
 		while(!isQuote(current)) {
-			if(isEscapeCharacter(current))
+			if(isEscapeCharacter(current) && isQuote(peekNextChar()))
 				current = getNextCharAndAdvancePointer();
 			str.append(current);
 			current = getNextCharAndAdvancePointer();
@@ -230,7 +246,7 @@ public class JsonParser {
 		return false;
 	}
 	
-	private void readNumber() {
+	private void readNumber() throws JsonParseException {
 		StringBuilder number = new StringBuilder();
 		boolean hasDecimal = false;
 		while(isNumber(current)) {
@@ -239,9 +255,22 @@ public class JsonParser {
 			current = getNextCharAndAdvancePointer();
 		}
 		offset--;
-		if(hasDecimal)
-			value = Double.parseDouble(number.toString());
-		else value = Long.parseLong(number.toString());
+		try{
+			if(hasDecimal){
+				Double d = Double.parseDouble(number.toString());
+				if(d<Float.MAX_VALUE && d>Float.MIN_VALUE)
+					value = Float.parseFloat(number.toString());
+				else value = d;
+			}
+			else{
+				Long l = Long.parseLong(number.toString());
+				if(l<Integer.MAX_VALUE && l>Integer.MIN_VALUE)
+					value = Integer.parseInt(number.toString());
+				else value = l;
+			}
+		}catch(NumberFormatException nfe){
+			throw new JsonParseException("Unexpected character at position "+((parsedBytes-MAX_BUFFER_SIZE)+offset));
+		}
 	}
 	
 	private void readNull() {

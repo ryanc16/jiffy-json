@@ -58,13 +58,17 @@ public class JsonArray extends JsonEntity implements List<Object>{
 		}
 		catch(ClassCastException cce) {}
 		try {
-			sb.append('"'+(String)get(index)+'"');
+			sb.append('"'+escapeString((String)get(index))+'"');
 			return;
 		}
 		catch(ClassCastException cce) {}
 		sb.append(get(index).toString());
 	}
 
+	private String escapeString(String str) {
+		return str.replace("\"","\\\"");
+	}
+	
 	@Override
 	public boolean add(Object arg0) {
 		return list.add(arg0);

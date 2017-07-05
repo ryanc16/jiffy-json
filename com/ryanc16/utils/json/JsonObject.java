@@ -60,8 +60,9 @@ public class JsonObject extends JsonEntity implements Map<String,Object>{
 	}
 	
 	private String escapeString(String str) {
-		return str.replace("\"", "\\\"");//.replaceAll("'","\'").replaceAll("\\", "\\\\");
+		return str.replace("\"", "\\\"");
 	}
+	
 	/**
 	 * Implicitly calls the {@link #toJsonString} method.
 	 */
@@ -72,18 +73,17 @@ public class JsonObject extends JsonEntity implements Map<String,Object>{
 
 	@Override
 	public void clear() {
-		// TODO Auto-generated method stub
 		map.clear();
 	}
 
 	@Override
-	public boolean containsKey(Object arg0) {
-		return map.containsKey(arg0);
+	public boolean containsKey(Object key) {
+		return map.containsKey(key);
 	}
 
 	@Override
-	public boolean containsValue(Object arg0) {
-		return map.containsValue(arg0);
+	public boolean containsValue(Object value) {
+		return map.containsValue(value);
 	}
 
 	@Override
@@ -92,8 +92,12 @@ public class JsonObject extends JsonEntity implements Map<String,Object>{
 	}
 
 	@Override
-	public Object get(Object arg0) {
-		return map.get(arg0);
+	public Object get(Object key) {
+		return map.get(key);
+	}
+	
+	public Object get(String key) {
+		return map.get(key);
 	}
 
 	@Override
