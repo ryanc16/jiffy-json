@@ -1,16 +1,17 @@
 package com.ryanc16.utils.json;
 import java.io.IOException;
 import java.io.Reader;
+import java.io.StringReader;
 import java.util.Stack;
 /**
- * An object used to parse a string or file into JsonObjects or JsonArrays.
+ * An object used to parse a string or file into {@link JsonObject}s or {@link JsonArray}s.
  * @author Ryan
  */
 public class JsonParser {
 
-	private Reader file_reader;
+	private Reader src_reader;
 	private Stack<Object> nesting;
-	private StringBuffer file_buff;
+	private StringBuffer json_buff;
 	private int offset;
 	private final int MAX_BUFFER_SIZE = 1048576;//1MB
 	private final int BUFF_SIZE = 1024;//1KB
@@ -40,9 +41,17 @@ public class JsonParser {
 	 * @throws IOException When the buffer cannot read from the supplied reader object. Could indicate closed stream etc..
 	 */
 	public JsonEntity parse(Reader reader) throws JsonParseException,IOException {
-		file_reader = reader;
+		src_reader = reader;
 		copyIntoBuffer();
-		return parse(file_buff.toString());
+		if(json_buff.length()==0) throw new JsonParseException("Empty string was passed to parser.");
+		offset = -1;
+		onkey = false;
+		current = getNextCharAndAdvancePointer();
+		switch(current) {
+			case '{': return readObject();
+			case '[': return readArray();
+			default: throw new JsonParseException("Character at position 0 did not indicate an object '{' or an array '['.");
+		}
 	}
 	/**
 	 * Parses the json contained in a string into a usable Java object.
@@ -51,13 +60,12 @@ public class JsonParser {
 	 * @throws JsonParseException When the json does not start with a '{' or a '[' character.
 	 */
 	public JsonEntity parse(String json) throws JsonParseException {
-		offset = -1;
-		onkey = false;
-		current = getNextCharAndAdvancePointer();
-		switch(current) {
-			case '{': return readObject();
-			case '[': return readArray();
-			default: throw new JsonParseException("Character at position 0 did not indicate an object '{' or an array '['.");
+		src_reader = new StringReader(json);
+		try {
+			return parse(src_reader);
+		}
+		catch(IOException ioe) {
+			throw new JsonParseException();
 		}
 	}
 	
@@ -83,6 +91,7 @@ public class JsonParser {
 			break;
 		case 'I':
 			readInfinity();
+			endValue();
 			break;
 		case '-':
 		case '0':
@@ -103,6 +112,8 @@ public class JsonParser {
 			endValue();
 			break;
 		case '{':
+			if(workingWithObject() && key==null)
+				throwUnexpectedCharacterException(current);
 			String _key0 = key;
 			value = readObject();
 			if(workingWithObject()) {
@@ -112,6 +123,8 @@ public class JsonParser {
 			else ((JsonArray)nesting.peek()).add(value);
 			break;
 		case '[':
+			if(workingWithObject() && key==null)
+				throwUnexpectedCharacterException(current);
 			String _key1 = key;
 			value = readArray();
 			if(workingWithObject()) {
@@ -120,11 +133,15 @@ public class JsonParser {
 			}
 			else ((JsonArray)nesting.peek()).add(value);
 			break;
-		default: break;
+		case '}':
+		case ']':
+			break;
+		default: throwUnexpectedCharacterException(current);
 		}
 	}
 	
 	private JsonObject readObject() throws JsonParseException{
+		key = null;
 		onkey = true;
 		nesting.push(new JsonObject());
 		while(current!='}') read();
@@ -133,6 +150,7 @@ public class JsonParser {
 	}
 	
 	private JsonArray readArray() throws JsonParseException{
+		key=null;
 		nesting.push(new JsonArray());
 		while(current!=']') read();
 		if(peekNextChar()!=']') current = getNextCharAndAdvancePointer();
@@ -179,7 +197,7 @@ public class JsonParser {
 	
 	private boolean isControlCharacter(char c) {
 		switch(c) {
-			case '"':
+			//case '"':
 			case '\\':
 			case '/':
 			case 'b':
@@ -193,14 +211,15 @@ public class JsonParser {
 		return false;
 	}
 	
-	private void readBoolean() {
+	private void readBoolean() throws JsonParseException{
+		if(onkey) throwUnexpectedCharacterException(current);
 		if(current=='t') {
 			value = true;
-			offset+=3;
+			readNextNChars(4);
 		}
 		else {
 			value = false;
-			offset+=4;
+			readNextNChars(5);
 		}
 	}
 	
@@ -213,18 +232,27 @@ public class JsonParser {
 		StringBuilder str = new StringBuilder();
 		current = getNextCharAndAdvancePointer();
 		while(!isQuote(current)) {
-			if(isEscapeCharacter(current) && isQuote(peekNextChar()))
-				current = getNextCharAndAdvancePointer();
+			if(isEscapeCharacter(current)){
+				if(isControlCharacter(peekNextChar())) {
+					str.append(current);
+					current = getNextCharAndAdvancePointer();
+				}
+				else if(isQuote(peekNextChar())) {
+					current = getNextCharAndAdvancePointer();
+				}
+			}
 			str.append(current);
 			current = getNextCharAndAdvancePointer();
 		}
+		
 		if(onkey) key = str.toString();
 		else value = str.toString();
 	}
 	
-	private void readInfinity() {
+	private void readInfinity() throws JsonParseException {
+		if(onkey) throwUnexpectedCharacterException(current);
 		value = Double.POSITIVE_INFINITY;
-		offset+=7;
+		readNextNChars(8);
 	}
 	
 	private boolean isNumber(char current) {
@@ -247,10 +275,13 @@ public class JsonParser {
 	}
 	
 	private void readNumber() throws JsonParseException {
+		if(onkey) throwUnexpectedCharacterException(current);
 		StringBuilder number = new StringBuilder();
 		boolean hasDecimal = false;
 		while(isNumber(current)) {
+			if(hasDecimal && current=='.') throwUnexpectedCharacterException(current);
 			if(!hasDecimal && current=='.') hasDecimal = true;
+			
 			number.append(current);
 			current = getNextCharAndAdvancePointer();
 		}
@@ -269,20 +300,21 @@ public class JsonParser {
 				else value = l;
 			}
 		}catch(NumberFormatException nfe){
-			throw new JsonParseException("Unexpected character at position "+((parsedBytes-MAX_BUFFER_SIZE)+offset));
+			throwUnexpectedCharacterException(number.charAt(0));
 		}
 	}
 	
-	private void readNull() {
+	private void readNull() throws JsonParseException {
 		value = null;
-		offset+=3;
+		readNextNChars(4);
+		//offset+=4;
 	}
 	/**
 	 * Looks to see what the next character will be without advancing the offset.
 	 * @return The next character in the buffer.
 	 */
 	private char peekNextChar() {
-		return (offset+1)>file_buff.length()-1?file_buff.charAt(offset):file_buff.charAt(offset+1);
+		return (offset+1)>json_buff.length()-1?json_buff.charAt(offset):json_buff.charAt(offset+1);
 	}
 	/**
 	 * Gets the next character in the buffer and advances the offset.
@@ -291,13 +323,18 @@ public class JsonParser {
 	 */
 	private char getNextCharAndAdvancePointer() {
 		offset++;
-		if(offset >= file_buff.length() && hasmore) {
+		if(offset >= json_buff.length() && hasmore) {
 			try{
 				copyIntoBuffer();
 			}catch(IOException ioe) {ioe.printStackTrace();}
 			offset=0;
 		}
-		return file_buff.charAt(offset);
+		return json_buff.charAt(offset);
+	}
+	
+	private void readNextNChars(int num_chars_to_skip) {
+		for(int i=0;i<num_chars_to_skip;i++)
+			current = getNextCharAndAdvancePointer();
 	}
 	
 	private boolean workingWithObject() {
@@ -305,22 +342,29 @@ public class JsonParser {
 	}
 	/**
 	* Used to copy sequential pieces of a string from a reader object into the buffer.
-	* Needs to use this to avoid {@link java.lang.OutOfMemoryError OutOfMemoryError}
+	* Needs to use this to avoid {@link java.lang.OutOfMemoryError OutOfMemoryError} for large amounts of json.
 	*/
 	private void copyIntoBuffer() throws IOException {
-		file_buff = new StringBuffer(BUFF_SIZE);
+		json_buff = new StringBuffer(BUFF_SIZE);
 		char[] cbuf = new char[BUFF_SIZE];
 		int read = 0;
 		int total_read = 0;
 		hasmore = false;
-		while((read = file_reader.read(cbuf))!=-1) {
+		while((read = src_reader.read(cbuf))!=-1) {
 			total_read+=read;
-			file_buff.append(cbuf,0,read);
+			json_buff.append(cbuf,0,read);
 			if(total_read >= MAX_BUFFER_SIZE) {
 				hasmore = true;
 				break;
 			}
 		}
 		parsedBytes+=total_read;
+	}
+	
+	private void throwUnexpectedCharacterException(char unexpected) throws JsonParseException {
+		
+		long location = (parsedBytes-Math.min(parsedBytes,MAX_BUFFER_SIZE))+offset;
+		String message = "Unexpected character '"+unexpected+"' at position "+location+ ((nesting.peek()!=null)?" while parsing "+nesting.peek():".");
+		throw new JsonParseException(message);
 	}
 }
