@@ -70,13 +70,13 @@ public class JsonArray extends JsonEntity implements List<Object>{
 	}
 	
 	@Override
-	public boolean add(Object arg0) {
-		return list.add(arg0);
+	public boolean add(Object obj) {
+		return list.add(obj);
 	}
 
 	@Override
-	public void add(int arg0, Object arg1) {
-		list.add(arg0,arg1);
+	public void add(int index, Object obj) {
+		list.add(index,obj);
 	}
 
 	@Override
@@ -95,8 +95,8 @@ public class JsonArray extends JsonEntity implements List<Object>{
 	}
 
 	@Override
-	public boolean contains(Object arg0) {
-		return list.contains(arg0);
+	public boolean contains(Object obj) {
+		return list.contains(obj);
 	}
 
 	@Override
@@ -105,13 +105,13 @@ public class JsonArray extends JsonEntity implements List<Object>{
 	}
 
 	@Override
-	public Object get(int arg0) {
-		return list.get(arg0);
+	public Object get(int index) {
+		return list.get(index);
 	}
 
 	@Override
-	public int indexOf(Object arg0) {
-		return list.indexOf(arg0);
+	public int indexOf(Object obj) {
+		return list.indexOf(obj);
 	}
 
 	@Override
@@ -125,8 +125,8 @@ public class JsonArray extends JsonEntity implements List<Object>{
 	}
 
 	@Override
-	public int lastIndexOf(Object arg0) {
-		return list.lastIndexOf(arg0);
+	public int lastIndexOf(Object obj) {
+		return list.lastIndexOf(obj);
 	}
 
 	@Override
@@ -140,13 +140,13 @@ public class JsonArray extends JsonEntity implements List<Object>{
 	}
 
 	@Override
-	public boolean remove(Object arg0) {
-		return list.remove(arg0);
+	public boolean remove(Object obj) {
+		return list.remove(obj);
 	}
 
 	@Override
-	public Object remove(int arg0) {
-		return list.remove(arg0);
+	public Object remove(int index) {
+		return list.remove(index);
 	}
 
 	@Override
@@ -160,8 +160,8 @@ public class JsonArray extends JsonEntity implements List<Object>{
 	}
 
 	@Override
-	public Object set(int arg0, Object arg1) {
-		return list.set(arg0, arg1);
+	public Object set(int index, Object obj) {
+		return list.set(index, obj);
 	}
 
 	@Override

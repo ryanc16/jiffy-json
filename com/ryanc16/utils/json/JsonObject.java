@@ -111,8 +111,8 @@ public class JsonObject extends JsonEntity implements Map<String,Object>{
 	}
 
 	@Override
-	public Object put(String arg0, Object arg1) {
-		return map.put(arg0, arg1);
+	public Object put(String key, Object obj) {
+		return map.put(key, obj);
 	}
 
 	@Override
@@ -121,8 +121,8 @@ public class JsonObject extends JsonEntity implements Map<String,Object>{
 	}
 
 	@Override
-	public Object remove(Object arg0) {
-		return map.remove(arg0);
+	public Object remove(Object obj) {
+		return map.remove(obj);
 	}
 
 	@Override
