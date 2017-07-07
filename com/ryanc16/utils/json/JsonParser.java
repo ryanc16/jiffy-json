@@ -47,6 +47,7 @@ public class JsonParser {
 		offset = -1;
 		onkey = false;
 		current = getNextCharAndAdvancePointer();
+		skipWhitespace();
 		switch(current) {
 			case '{': return readObject();
 			case '[': return readArray();
